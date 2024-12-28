@@ -88,10 +88,11 @@ void financial_id_checker_for_display(void);
 void display_finacial_summary(int);
 int corporate_tax_calculator(int);
 void draw_bar_chart(int, int, int, int, int);
+void draw_monthly_bar_chart(int [], int [], int []);
 
 int main(void) {
     InitWindow(2000, 900, "Company Management System");
-    SetTargetFPS(60);
+    SetTargetFPS(10);
 
     input_financial_data();
     read_busy_employees_from_file();
@@ -409,7 +410,6 @@ void add_employee(void) {
                 temp.salary = std::stod(employee_salary);  // Try to convert salary to a double
             }
             catch (const std::invalid_argument& e) {
-                temp.salary = 0.0;  // Don't default to 0, just mark as invalid
                 all_inputs_valid = false;
                 DrawText("Invalid Salary entered. Please enter a valid salary.", 1500, 350, 20, RED);
             }
@@ -615,13 +615,18 @@ void update_employee_checker(void) {
     std::string employee_id = "";
     bool employee_id_input_active = false;
     bool should_exit = false;
+    bool is_data_valid = true;
     while (!WindowShouldClose() && !should_exit) {
         bool button_back_active = false;
         Vector2 mouse = GetMousePosition();
+        // Handle button clicks
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-            employee_id_input_active = (mouse.x > button_user_input.x && mouse.x < button_user_input.x + button_user_input.width) && (mouse.y > button_user_input.y && mouse.y < button_user_input.y + button_user_input.height);
-            button_back_active = (mouse.x > button_back.x && mouse.x < button_back.x + button_back.width) && (mouse.y > button_back.y && mouse.y < button_back.y + button_back.height);
+            employee_id_input_active = (mouse.x > button_user_input.x && mouse.x < button_user_input.x + button_user_input.width) &&
+                (mouse.y > button_user_input.y && mouse.y < button_user_input.y + button_user_input.height);
+            button_back_active = (mouse.x > button_back.x && mouse.x < button_back.x + button_back.width) &&
+                (mouse.y > button_back.y && mouse.y < button_back.y + button_back.height);
         }
+        // Handle text input
         if (employee_id_input_active) {
             int key = GetCharPressed();
             while (key > 0) {
@@ -636,23 +641,47 @@ void update_employee_checker(void) {
                 employee_id.pop_back();
             }
         }
+        // Handle Enter key to validate the input
+        if (employee_id_input_active && IsKeyPressed(KEY_ENTER)) {
+            try {
+                // Try to convert the employee_id to an integer
+                int employee_id_int = std::stoi(employee_id);
+
+                // Perform binary search to find the employee index
+                int index_of_employee = binary_search(employee_id_int);
+                if (index_of_employee == -1) {
+                    DrawText("Employee does not exist in our database", 100, 200, 20, BLACK);
+                }
+                else {
+                    update_employee(index_of_employee);
+                }
+            }
+            catch (const std::invalid_argument& e) {
+                // If conversion fails, show an error message and ask the user to try again
+                DrawText("Invalid input. Please enter a valid Employee ID (numeric only).", 100, 200, 20, RED);
+                employee_id = "";  // Reset input for the user to try again
+            }
+            catch (const std::out_of_range& e) {
+                // If the input number is too large, handle it gracefully
+                DrawText("Employee ID too large. Please enter a smaller number.", 100, 200, 20, RED);
+                employee_id = "";  // Reset input for the user to try again
+            }
+        }
+
+        // Drawing section
         BeginDrawing();
         ClearBackground(RAYWHITE);
         DrawText("Enter Employee ID:", 100, 70, 20, DARKGRAY);
+
+        // Draw the input button and the entered text
         DrawRectangleRec(button_user_input, employee_id_input_active ? DARKGRAY : LIGHTGRAY);
         DrawText(employee_id.c_str(), button_user_input.x + 10, button_user_input.y + 10, 20, BLACK);
-        if (employee_id_input_active && IsKeyPressed(KEY_ENTER)) {
-            int employee_id_int = std::stoi(employee_id);
-            int index_of_employee = binary_search(employee_id_int);
-            if (index_of_employee == -1) {
-                DrawText("Employee does not exist in our database", 100, 200, 20, BLACK);
-            }
-            else {
-                update_employee(index_of_employee);
-            }
-        }
+
+        // Draw the back button
         DrawRectangleRec(button_back, button_back_active ? DARKGRAY : LIGHTGRAY);
         DrawText("BACK", button_back.x + 10, button_back.y + 15, 20, BLACK);
+
+        // Handle BACK button click
         if (CheckCollisionPointRec(mouse, button_back) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             CloseWindow();
             employee_management_module();
@@ -666,10 +695,6 @@ void update_employee_checker(void) {
     }
 }
 void update_employee(int index) {
-
-    std::string employee_id_string, employee_name, employee_salary, employee_department,
-        employee_designation, employee_joining_date, employee_skills;
-
     Rectangle button_7 = { 0, 0, 400, 50 };
 
     bool employee_id_string_Active = false, employee_name_Active = false, employee_department_Active = false,
@@ -677,6 +702,8 @@ void update_employee(int index) {
         employee_salary_Active = false, button_7_active = false;
 
     EMPLOYEE temp = employees[index]; // Load the existing employee data into temp
+    std::string employee_id_string = std::to_string(temp.ID), employee_name = temp.name , employee_salary = std::to_string(temp.salary), employee_department = temp.department,
+        employee_designation = temp.designation, employee_joining_date = temp.joining_date, employee_skills = temp.skills;
 
     bool is_data_valid = true; // To track if all inputs are valid
     bool should_exit = false;
@@ -797,6 +824,8 @@ void update_employee(int index) {
                 temp.salary = std::stod(employee_salary);
                 temp.joining_date = employee_joining_date;
                 temp.skills = employee_skills;
+                employees[index] = temp;
+                DrawText("Employee added successfully!", 1500, 400, 20, DARKGREEN);
             }
         }
 
@@ -843,28 +872,30 @@ void update_employee(int index) {
         EndDrawing();
     }
     // Update the employee data in the vector if date is valid
-    if (is_data_valid) {
-        employees[index] = temp;
-        DrawText("Employee added successfully!", 1500, 400, 20, DARKGREEN);
-    }
     if (should_exit) {
         CloseWindow();
     }
 }
 void delete_employee_id_input() {
-
     Rectangle button_back = { 0, 0, 400, 50 };
     Rectangle button_user_input = { 100, 100, 400, 50 };
     std::string employee_id = "";
     bool employee_id_input_active = false;
     bool shouldexit = false;
+
     while (!WindowShouldClose() && !shouldexit) {
         bool button_back_active = false;
         Vector2 mouse = GetMousePosition();
+
+        // Handle button clicks
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-            employee_id_input_active = (mouse.x > button_user_input.x && mouse.x < button_user_input.x + button_user_input.width) && (mouse.y > button_user_input.y && mouse.y < button_user_input.y + button_user_input.height);
-            button_back_active = (mouse.x > button_back.x && mouse.x < button_back.x + button_back.width) && (mouse.y > button_back.y && mouse.y < button_back.y + button_back.height);
+            employee_id_input_active = (mouse.x > button_user_input.x && mouse.x < button_user_input.x + button_user_input.width) &&
+                (mouse.y > button_user_input.y && mouse.y < button_user_input.y + button_user_input.height);
+            button_back_active = (mouse.x > button_back.x && mouse.x < button_back.x + button_back.width) &&
+                (mouse.y > button_back.y && mouse.y < button_back.y + button_back.height);
         }
+
+        // Handle text input
         if (employee_id_input_active) {
             int key = GetCharPressed();
             while (key > 0) {
@@ -879,24 +910,49 @@ void delete_employee_id_input() {
                 employee_id.pop_back();
             }
         }
+
+        // Handle Enter key to validate the input
+        if (employee_id_input_active && IsKeyPressed(KEY_ENTER)) {
+            try {
+                // Try to convert the employee_id to an integer
+                int employee_id_int = std::stoi(employee_id);
+
+                // Perform binary search to find the employee index
+                int index_of_employee = binary_search(employee_id_int);
+                if (index_of_employee == -1) {
+                    DrawText("Employee does not exist in our database.", 100, 200, 20, BLACK);
+                }
+                else {
+                    DrawText("Employee successfully deleted from database.", 100, 200, 20, BLACK);
+                    delete_employee(employee_id_int);
+                }
+            }
+            catch (const std::invalid_argument& e) {
+                // If conversion fails (non-numeric input), show error and reset input
+                DrawText("Invalid input. Please enter a valid Employee ID (numeric only).", 100, 200, 20, RED);
+                employee_id = "";  // Reset the input field
+            }
+            catch (const std::out_of_range& e) {
+                // If the input number is too large
+                DrawText("Employee ID too large. Please enter a smaller number.", 100, 200, 20, RED);
+                employee_id = "";  // Reset the input field
+            }
+        }
+
+        // Drawing section
         BeginDrawing();
         ClearBackground(RAYWHITE);
         DrawText("Enter Employee ID:", 100, 70, 20, DARKGRAY);
+
+        // Draw the input button and the entered text
         DrawRectangleRec(button_user_input, employee_id_input_active ? DARKGRAY : LIGHTGRAY);
         DrawText(employee_id.c_str(), button_user_input.x + 10, button_user_input.y + 10, 20, BLACK);
-        if (employee_id_input_active && IsKeyPressed(KEY_ENTER)) {
-            int employee_id_int = std::stoi(employee_id);
-            int index_of_employee = binary_search(employee_id_int);
-            if (index_of_employee == -1) {
-                DrawText("Employee does not exist in our database.", 100, 200, 20, BLACK);
-            }
-            else {
-                DrawText("Employee successfully deleted from data base.", 100, 200, 20, BLACK);
-                delete_employee(employee_id_int);
-            }
-        }
+
+        // Draw the back button
         DrawRectangleRec(button_back, button_back_active ? DARKGRAY : LIGHTGRAY);
         DrawText("BACK", button_back.x + 10, button_back.y + 15, 20, BLACK);
+
+        // Handle BACK button click
         if (CheckCollisionPointRec(mouse, button_back) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             CloseWindow();
             employee_management_module();
@@ -908,7 +964,6 @@ void delete_employee_id_input() {
     if (shouldexit) {
         CloseWindow();
     }
-
 }
 void delete_employee(int id_to_be_removed) {
     EMPLOYEE temp;
@@ -940,13 +995,20 @@ void display_employee_checker(void) {
     std::string employee_id = "";
     bool employee_id_input_active = false;
     bool shouldexit = false;
+
     while (!WindowShouldClose() && !shouldexit) {
         bool button_back_active = false;
         Vector2 mouse = GetMousePosition();
+
+        // Handle mouse input
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-            employee_id_input_active = (mouse.x > button_user_input.x && mouse.x < button_user_input.x + button_user_input.width) && (mouse.y > button_user_input.y && mouse.y < button_user_input.y + button_user_input.height);
-            button_back_active = (mouse.x > button_back.x && mouse.x < button_back.x + button_back.width) && (mouse.y > button_back.y && mouse.y < button_back.y + button_back.height);
+            employee_id_input_active = (mouse.x > button_user_input.x && mouse.x < button_user_input.x + button_user_input.width) &&
+                (mouse.y > button_user_input.y && mouse.y < button_user_input.y + button_user_input.height);
+            button_back_active = (mouse.x > button_back.x && mouse.x < button_back.x + button_back.width) &&
+                (mouse.y > button_back.y && mouse.y < button_back.y + button_back.height);
         }
+
+        // Handle text input
         if (employee_id_input_active) {
             int key = GetCharPressed();
             while (key > 0) {
@@ -961,23 +1023,44 @@ void display_employee_checker(void) {
                 employee_id.pop_back();
             }
         }
+
+        // Handle Enter key to validate input and perform action
+        if (employee_id_input_active && IsKeyPressed(KEY_ENTER)) {
+            try {
+                // Try to convert the employee_id to an integer
+                int employee_id_int = std::stoi(employee_id);
+
+                // Perform binary search to find the employee index
+                int index_of_employee = binary_search(employee_id_int);
+                if (index_of_employee == -1) {
+                    DrawText("Employee does not exist in our database", 100, 200, 20, BLACK);
+                }
+                else {
+                    display_specific_employee_data(index_of_employee);
+                }
+            }
+            catch (const std::invalid_argument& e) {
+                // If conversion fails (non-numeric input), show error and reset input
+                DrawText("Invalid input. Please enter a valid Employee ID (numeric only).", 100, 200, 20, RED);
+                employee_id = "";  // Reset the input field
+            }
+            catch (const std::out_of_range& e) {
+                // If the input number is too large
+                DrawText("Employee ID too large. Please enter a smaller number.", 100, 200, 20, RED);
+                employee_id = "";  // Reset the input field
+            }
+        }
+        // Drawing section
         BeginDrawing();
         ClearBackground(RAYWHITE);
         DrawText("Enter Employee ID:", 100, 70, 20, DARKGRAY);
+        // Draw the input button and the entered text
         DrawRectangleRec(button_user_input, employee_id_input_active ? DARKGRAY : LIGHTGRAY);
         DrawText(employee_id.c_str(), button_user_input.x + 10, button_user_input.y + 10, 20, BLACK);
-        if (employee_id_input_active && IsKeyPressed(KEY_ENTER)) {
-            int employee_id_int = std::stoi(employee_id);
-            int index_of_employee = binary_search(employee_id_int);
-            if (index_of_employee == -1) {
-                DrawText("Employee does not exist in our database", 100, 200, 20, BLACK);
-            }
-            else {
-                display_specific_employee_data(index_of_employee);
-            }
-        }
+        // Draw the back button
         DrawRectangleRec(button_back, button_back_active ? DARKGRAY : LIGHTGRAY);
         DrawText("BACK", button_back.x + 10, button_back.y + 15, 20, BLACK);
+        // Handle BACK button click
         if (CheckCollisionPointRec(mouse, button_back) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             CloseWindow();
             employee_management_module();
@@ -1439,7 +1522,6 @@ int dateToNumber(const std::string& date) {
 }
 
 void project_id_checker(void) {
-
     Rectangle button_back = { 0, 0, 400, 50 };
     Rectangle button_user_input = { 100, 100, 400, 50 };
     std::string project_id = "";
@@ -1448,10 +1530,16 @@ void project_id_checker(void) {
     while (!WindowShouldClose() && !should_exit) {
         bool button_back_active = false;
         Vector2 mouse = GetMousePosition();
+
+        // Handle mouse input
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-            project_id_input_active = (mouse.x > button_user_input.x && mouse.x < button_user_input.x + button_user_input.width) && (mouse.y > button_user_input.y && mouse.y < button_user_input.y + button_user_input.height);
-            button_back_active = (mouse.x > button_back.x && mouse.x < button_back.x + button_back.width) && (mouse.y > button_back.y && mouse.y < button_back.y + button_back.height);
+            project_id_input_active = (mouse.x > button_user_input.x && mouse.x < button_user_input.x + button_user_input.width) &&
+                (mouse.y > button_user_input.y && mouse.y < button_user_input.y + button_user_input.height);
+            button_back_active = (mouse.x > button_back.x && mouse.x < button_back.x + button_back.width) &&
+                (mouse.y > button_back.y && mouse.y < button_back.y + button_back.height);
         }
+
+        // Handle text input
         if (project_id_input_active) {
             int key = GetCharPressed();
             while (key > 0) {
@@ -1466,23 +1554,43 @@ void project_id_checker(void) {
                 project_id.pop_back();
             }
         }
+        // Handle Enter key to validate input and perform action
+        if (project_id_input_active && IsKeyPressed(KEY_ENTER)) {
+            try {
+                // Try to convert the project_id to an integer
+                int project_id_int = std::stoi(project_id);
+
+                // Perform binary search to find the project index
+                int index_of_project = binary_search_project(project_id_int);
+                if (index_of_project == -1) {
+                    DrawText("Project does not exist in our database", 100, 200, 20, BLACK);
+                }
+                else {
+                    assign_project_to_employee_checker(index_of_project);
+                }
+            }
+            catch (const std::invalid_argument& e) {
+                // If conversion fails (non-numeric input), show error and reset input
+                DrawText("Invalid input. Please enter a valid Project ID (numeric only).", 100, 200, 20, RED);
+                project_id = "";  // Reset the input field
+            }
+            catch (const std::out_of_range& e) {
+                // If the input number is too large
+                DrawText("Project ID too large. Please enter a smaller number.", 100, 200, 20, RED);
+                project_id = "";  // Reset the input field
+            }
+        }
+        // Drawing section
         BeginDrawing();
         ClearBackground(RAYWHITE);
         DrawText("Enter Project ID:", 100, 70, 20, DARKGRAY);
+        // Draw the input button and the entered text
         DrawRectangleRec(button_user_input, project_id_input_active ? DARKGRAY : LIGHTGRAY);
         DrawText(project_id.c_str(), button_user_input.x + 10, button_user_input.y + 10, 20, BLACK);
-        if (project_id_input_active && IsKeyPressed(KEY_ENTER)) {
-            int project_id_int = std::stoi(project_id);
-            int index_of_project = binary_search_project(project_id_int);
-            if (index_of_project == -1) {
-                DrawText("Project does not exist in our database", 100, 200, 20, BLACK);
-            }
-            else {
-                assign_project_to_employee_checker(index_of_project);
-            }
-        }
+        // Draw the back button
         DrawRectangleRec(button_back, button_back_active ? DARKGRAY : LIGHTGRAY);
         DrawText("BACK", button_back.x + 10, button_back.y + 15, 20, BLACK);
+        // Handle BACK button click
         if (CheckCollisionPointRec(mouse, button_back) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             CloseWindow();
             project_management_module();
@@ -1841,19 +1949,24 @@ void display_specific_project_data(int index) {
     }
 }
 void financial_id_checker_for_display(void) {
-   
     Rectangle button_back = { 0, 0, 400, 50 };
     Rectangle button_user_input = { 100, 100, 400, 50 };
     std::string finance_year = "";
     bool finance_year_active = false;
     bool shouldexit = false;
-    while (!WindowShouldClose()&& !shouldexit) {
+    while (!WindowShouldClose() && !shouldexit) {
         bool button_back_active = false;
         Vector2 mouse = GetMousePosition();
+
+        // Handle mouse input
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-            finance_year_active = (mouse.x > button_user_input.x && mouse.x < button_user_input.x + button_user_input.width) && (mouse.y > button_user_input.y && mouse.y < button_user_input.y + button_user_input.height);
-            button_back_active = (mouse.x > button_back.x && mouse.x < button_back.x + button_back.width) && (mouse.y > button_back.y && mouse.y < button_back.y + button_back.height);
+            finance_year_active = (mouse.x > button_user_input.x && mouse.x < button_user_input.x + button_user_input.width) &&
+                (mouse.y > button_user_input.y && mouse.y < button_user_input.y + button_user_input.height);
+            button_back_active = (mouse.x > button_back.x && mouse.x < button_back.x + button_back.width) &&
+                (mouse.y > button_back.y && mouse.y < button_back.y + button_back.height);
         }
+
+        // Handle text input
         if (finance_year_active) {
             int key = GetCharPressed();
             while (key > 0) {
@@ -1868,29 +1981,50 @@ void financial_id_checker_for_display(void) {
                 finance_year.pop_back();
             }
         }
+
+        // Handle Enter key to validate input and perform action
+        if (finance_year_active && IsKeyPressed(KEY_ENTER)) {
+            try {
+                // Try to convert the finance_year to an integer
+                int year_int = std::stoi(finance_year);
+
+                // Perform binary search to find the financial summary
+                int index_of_summary = binary_search_finances(year_int);
+                if (index_of_summary == -1) {
+                    DrawText("Summary of this year does not exist in our database", 100, 200, 20, BLACK);
+                }
+                else {
+                    display_finacial_summary(index_of_summary);
+                    CloseWindow();
+                    shouldexit = true;
+                    break;
+                }
+            }
+            catch (const std::invalid_argument& e) {
+                // If conversion fails (non-numeric input), show error and reset input
+                DrawText("Invalid input. Please enter a valid Year (numeric only).", 100, 200, 20, RED);
+                finance_year = "";  // Reset the input field
+            }
+            catch (const std::out_of_range& e) {
+                // If the input number is too large
+                DrawText("Year is too large. Please enter a smaller number.", 100, 200, 20, RED);
+                finance_year = "";  // Reset the input field
+            }
+        }
+        // Drawing section
         BeginDrawing();
         ClearBackground(RAYWHITE);
         DrawText("Enter Year:", 100, 70, 20, DARKGRAY);
+        // Draw the input button and the entered text
         DrawRectangleRec(button_user_input, finance_year_active ? DARKGRAY : LIGHTGRAY);
         DrawText(finance_year.c_str(), button_user_input.x + 10, button_user_input.y + 10, 20, BLACK);
-        if (finance_year_active && IsKeyPressed(KEY_ENTER)) {
-            int year_int = std::stoi(finance_year);
-            int index_of_summary = binary_search_finances(year_int);
-            if (index_of_summary == -1) {
-                DrawText("Summary of this year does not exist in our database", 100, 200, 20, BLACK);
-            }
-            else {
-                display_finacial_summary(index_of_summary);
-                CloseWindow();
-                shouldexit = true;
-                break;
-            }
-        }
+        // Draw the back button
         DrawRectangleRec(button_back, button_back_active ? DARKGRAY : LIGHTGRAY);
         DrawText("BACK", button_back.x + 10, button_back.y + 15, 20, BLACK);
+        // Handle BACK button click
         if (CheckCollisionPointRec(mouse, button_back) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             CloseWindow();
-            project_management_module();
+            finance_management_module();
             shouldexit = true;
             break;
         }
@@ -1903,7 +2037,7 @@ void financial_id_checker_for_display(void) {
 // Function to determine the maximum value and scale other values accordingly
 void draw_bar_chart(int income, int expense, int net_income, int tax, int max_value) {
     // Define some spacing for the chart
-    const int chart_x = 1100;
+    const int chart_x = 1200;
     const int chart_width = 100; // Width of each bar
     const int bar_gap = 30; // Gap between bars
     const int max_height = 200; // Maximum height of the bars (adjust as needed)
@@ -1914,27 +2048,62 @@ void draw_bar_chart(int income, int expense, int net_income, int tax, int max_va
     // Draw bars for each financial value
     // Income bar
     int income_height = static_cast<int>(income * scale_factor);
-    DrawRectangle(chart_x, 550 - income_height, chart_width, income_height, GREEN);
+    DrawRectangle(chart_x, 450 - income_height, chart_width, income_height, GREEN);
 
     // Expense bar
     int expense_height = static_cast<int>(expense * scale_factor);
-    DrawRectangle(chart_x + chart_width + bar_gap, 550 - expense_height, chart_width, expense_height, RED);
+    DrawRectangle(chart_x + chart_width + bar_gap, 450 - expense_height, chart_width, expense_height, RED);
 
     // Net income bar
     int net_income_height = static_cast<int>(net_income * scale_factor);
-    DrawRectangle(chart_x + 2 * (chart_width + bar_gap), 550 - net_income_height, chart_width, net_income_height, BLUE);
+    DrawRectangle(chart_x + 2 * (chart_width + bar_gap), 450 - net_income_height, chart_width, net_income_height, BLUE);
 
     // Tax bar
     int tax_height = static_cast<int>(tax * scale_factor);
-    DrawRectangle(chart_x + 3 * (chart_width + bar_gap), 550 - tax_height, chart_width, tax_height, DARKGRAY);
+    DrawRectangle(chart_x + 3 * (chart_width + bar_gap), 450 - tax_height, chart_width, tax_height, DARKGRAY);
 
     // Labels for each bar
-    DrawText("Income", chart_x + 25, 570, 20, GREEN);
-    DrawText("Expense", chart_x + chart_width + bar_gap + 25, 570, 20, RED);
-    DrawText("Net Income", chart_x + 2 * (chart_width + bar_gap) + 25, 570, 20, BLUE);
-    DrawText("Tax", chart_x + 3 * (chart_width + bar_gap) + 25, 570, 20, DARKGRAY);
+    DrawText("Income", chart_x, 470, 20, GREEN);
+    DrawText("Expense", chart_x + chart_width + bar_gap, 470, 20, RED);
+    DrawText("Net Income", chart_x + 2 * (chart_width + bar_gap), 470, 20, BLUE);
+    DrawText("Tax", chart_x + 3 * (chart_width + bar_gap) + 10, 470, 20, DARKGRAY);
 }
+// Function to draw bar chart for each month based on income, net income, and expenses
+void draw_monthly_bar_chart(int total_income[], int expenses[], int net_income[]) {
+    const int chart_x = 100;   // X position for the chart
+    const int chart_width = 70;  // Width of each bar
+    const int bar_gap = 20;      // Gap between bars
+    const int max_height = 100;  // Maximum height for the bars (adjust as needed)
 
+    // Maximum value to scale the bars
+    int max_value = 0;
+    for (int i = 0; i < 12; ++i) {
+        max_value = std::max({ max_value, total_income[i], expenses[i], net_income[i] });
+    }
+
+    // Scaling factor to fit bars within the available space
+    float scale_factor = static_cast<float>(max_height) / max_value;
+
+    // Loop through each month to draw the bars
+    for (int i = 0; i < 12; ++i) {
+        int income_height = static_cast<int>(total_income[i] * scale_factor);
+        int expense_height = static_cast<int>(expenses[i] * scale_factor);
+        int net_income_height = static_cast<int>(net_income[i] * scale_factor);
+
+        // Draw income bar for the current month
+        DrawRectangle(chart_x + i * (chart_width + bar_gap), 650 - income_height, chart_width, income_height, GREEN);
+
+        // Draw expense bar for the current month
+        DrawRectangle(chart_x + i * (chart_width + bar_gap), 750 - expense_height, chart_width, expense_height, RED);
+    }
+
+    // Add labels for each month
+    const char* months[12] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+    for (int i = 0; i < 12; ++i) {
+        DrawText(months[i], chart_x + i * (chart_width + bar_gap) + 10, 750, 15, DARKGRAY);
+    }
+    DrawText("Monthly Expenses and Incomes", 150 , 850, 30, DARKGRAY);
+}
 // Modified display_financial_summary function with bar chart
 void display_finacial_summary(int index) {
     Financial_matters temp = finances[index];
@@ -1999,7 +2168,7 @@ void display_finacial_summary(int index) {
 
         // Draw the bar chart
         draw_bar_chart(Yearly_income, Yearly_expense, net_income, tax, max_value);
-
+        draw_monthly_bar_chart(temp.total_income, temp.expenses, temp.net_income);
         // Draw BACK button
         DrawRectangleRec(button_7, button_7_active ? DARKGRAY : LIGHTGRAY);
         DrawText("BACK", button_7.x + 10, button_7.y + 15, 20, BLACK);
@@ -2010,21 +2179,24 @@ void display_finacial_summary(int index) {
         CloseWindow();
     }
 }
-
-
 void Add_financial_summary(void) {
     Rectangle button_back = { 0, 0, 400, 50 };
     Rectangle button_user_input = { 100, 100, 400, 50 };
     std::string year = "";
     bool year_active = false;
     bool shouldexit = false;
+
     while (!WindowShouldClose() && !shouldexit) {
         bool button_back_active = false;
         Vector2 mouse = GetMousePosition();
+        // Handle mouse input
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-            year_active = (mouse.x > button_user_input.x && mouse.x < button_user_input.x + button_user_input.width) && (mouse.y > button_user_input.y && mouse.y < button_user_input.y + button_user_input.height);
-            button_back_active = (mouse.x > button_back.x && mouse.x < button_back.x + button_back.width) && (mouse.y > button_back.y && mouse.y < button_back.y + button_back.height);
+            year_active = (mouse.x > button_user_input.x && mouse.x < button_user_input.x + button_user_input.width) &&
+                (mouse.y > button_user_input.y && mouse.y < button_user_input.y + button_user_input.height);
+            button_back_active = (mouse.x > button_back.x && mouse.x < button_back.x + button_back.width) &&
+                (mouse.y > button_back.y && mouse.y < button_back.y + button_back.height);
         }
+        // Handle text input
         if (year_active) {
             int key = GetCharPressed();
             while (key > 0) {
@@ -2039,25 +2211,47 @@ void Add_financial_summary(void) {
                 year.pop_back();
             }
         }
+        // Handle Enter key to validate input and perform action
+        if (year_active && IsKeyPressed(KEY_ENTER)) {
+            try {
+                // Try to convert the year to an integer
+                int year_int = std::stoi(year);
+
+                // Check if the financial report for the year already exists
+                int index = binary_search_finances(year_int);
+                if (index == -1) {
+                    // If the report doesn't exist, add the income for that year
+                    add_income(year);
+                    CloseWindow();
+                    break;
+                }
+                else {
+                    // If the report exists, display an error message
+                    DrawText("Financial report of this year already exists", 500, 500, 20, RED);
+                }
+            }
+            catch (const std::invalid_argument& e) {
+                // If conversion fails (non-numeric input), show error and reset input
+                DrawText("Invalid input. Please enter a valid Year (numeric only).", 100, 200, 20, RED);
+                year = "";  // Reset the input field
+            }
+            catch (const std::out_of_range& e) {
+                // If the input number is too large
+                DrawText("Year is too large. Please enter a smaller number.", 100, 200, 20, RED);
+                year = "";  // Reset the input field
+            }
+        }
+        // Drawing section
         BeginDrawing();
         ClearBackground(RAYWHITE);
         DrawText("Enter Year:", 100, 70, 20, DARKGRAY);
+        // Draw the input button and the entered text
         DrawRectangleRec(button_user_input, year_active ? DARKGRAY : LIGHTGRAY);
         DrawText(year.c_str(), button_user_input.x + 10, button_user_input.y + 10, 20, BLACK);
-        if (year_active && IsKeyPressed(KEY_ENTER)) {
-            int year_int = std::stoi(year);
-            int index = binary_search_finances(year_int);
-            if (index == -1) {
-                add_income(year);
-                CloseWindow();
-                break;
-            }
-            else {
-                DrawText("Financial report of this year already exists", 500, 500, 20, RED);
-            }
-        }
+        // Draw the back button
         DrawRectangleRec(button_back, button_back_active ? DARKGRAY : LIGHTGRAY);
         DrawText("BACK", button_back.x + 10, button_back.y + 15, 20, BLACK);
+        // Handle BACK button click
         if (CheckCollisionPointRec(mouse, button_back) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             CloseWindow();
             finance_management_module();
@@ -2501,6 +2695,9 @@ void add_expense(std::string year, int income_array[12]) {
             if (all_inputs_valid) {
                 for (int i = 0; i < 12; ++i) {
                     temp.total_income[i] = income_array[i];
+                }
+                for (int i = 0; i < 12; ++i) {
+                    temp.net_income[i] = temp.total_income[i] - temp.expenses[i];
                 }
                 finances.push_back(temp);
                 DrawText("Data saved successfully!", 1300, 300, 20, DARKGREEN);
