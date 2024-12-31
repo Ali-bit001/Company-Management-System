@@ -33,6 +33,11 @@ struct Project {
     std::string endDate = "";
     std::string status = "";
     std::vector<int> assignedEmployeeIds;
+    std::string Planning[2];
+    std::string Research[2];
+    std::string Design[2];
+    std::string Implementation[2];
+    std::string Follow_up[2];
 };
 
 std::vector<EMPLOYEE> employees;
@@ -40,6 +45,8 @@ std::vector<Project> projects;
 std::vector<int> busy_employees;
 std::vector<int> valid_employee_ids;
 std::vector<Financial_matters> finances;
+
+void login_window(void);
 
 void display_manager_options(void);
 void employee_management_module(void);
@@ -73,6 +80,9 @@ bool check_employee_id_existence(const std::string*, std::string*, int, const st
 void display_specific_project_data(int);
 int dateToNumber(const std::string&);
 void busy_employees_text_generator(void);
+void gnatt_chart_input(int index);
+void draw_gantt_chart(const Project& project, int index);
+void delete_projects(int id);
 void read_busy_employees_from_file(void);
 std::string get_current_date(void);
 
@@ -87,24 +97,118 @@ void sort_finances();
 void financial_id_checker_for_display(void);
 void display_finacial_summary(int);
 int corporate_tax_calculator(int);
+void delete_finances_func(int);
 void draw_bar_chart(int, int, int, int, int);
-void draw_monthly_bar_chart(int [], int [], int []);
+void draw_monthly_bar_chart(int[], int[], int[]);
+
+std::string manager_username = "Ali";
+std::string manager_password = "11111";
 
 int main(void) {
     InitWindow(2000, 900, "Company Management System");
-    SetTargetFPS(10);
-
+    SetTargetFPS(30);
     input_financial_data();
     read_busy_employees_from_file();
     load_project_data();
     load_employee_data();
-    display_manager_options();
+    login_window();
+}
+void login_window(void) {
+    
+    std::string id_string = "", password_string = "";
+
+    bool id_string_Active = false, password_string_Active = false;
+    bool all_inputs_valid = false;
+    bool should_exit = false;
+    while (!WindowShouldClose() && !should_exit) {
+        Vector2 mouse = GetMousePosition();
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+            id_string_Active = (mouse.x > 600 && mouse.x < 1000 && mouse.y > 150 && mouse.y < 200);
+            password_string_Active = (mouse.x > 600 && mouse.x < 1000 && mouse.y > 250 && mouse.y < 300);
+        }
+        // Handle text input
+        if (id_string_Active || password_string_Active) {
+            int key = GetCharPressed();
+            while (key > 0) {
+                if (key >= 32 && key <= 125) {
+                    if (id_string_Active && id_string.length() < 63) {
+                        id_string += static_cast<char>(key);
+                    }
+                    if (password_string_Active && password_string.length() < 63) {
+                        password_string += static_cast<char>(key);
+                    }
+                }
+                key = GetCharPressed();
+            }
+            // Handle backspace key
+            if (IsKeyPressed(KEY_BACKSPACE)) {
+                if (id_string_Active && !id_string.empty()) {
+                    id_string.pop_back();
+                }
+                if (password_string_Active && !password_string.empty()) {
+                    password_string.pop_back();
+                }
+            }
+        }
+
+        // Check for save button click
+        if (IsKeyPressed(KEY_ENTER)) {
+            // Validate inputs before proceeding
+            all_inputs_valid = true;      
+            if (all_inputs_valid && ((id_string) == manager_username) && (password_string == manager_password)) {
+                CloseWindow();
+                should_exit = true;
+                display_manager_options();
+                break;
+            }
+            else {
+                DrawText("Please correct the invalid entries.", 1500, 400, 20, RED);
+            }
+        }
+
+        BeginDrawing();
+        ClearBackground(RAYWHITE);
+        DrawText("Login", 750, 50, 50, DARKGRAY);
+
+        // Draw input fields
+        DrawRectangle(600, 150, 400, 50, LIGHTGRAY);
+        DrawText(id_string.c_str(), 610, 160, 30, BLACK);
+        DrawText("Username:", 440, 160, 30, DARKGRAY);
+
+        DrawRectangle(600, 250, 400, 50, LIGHTGRAY);
+        DrawText(password_string.c_str(), 610, 260, 30, BLACK);
+        DrawText("Password:", 440, 260, 30, DARKGRAY);
+
+        DrawText("Press Enter to proceed", 650, 310, 25, DARKGRAY);
+
+        EndDrawing();
+    }
+    if (should_exit) {
+        CloseWindow();
+    }
 }
 void display_manager_options(void) {
-  
+    // Button positions and sizes
     Rectangle button1 = { 100, 170, 400, 50 };
     Rectangle button2 = { 100, 230, 400, 50 };
     Rectangle button3 = { 100, 290, 400, 50 };
+
+    // News box position and size (1000 width, 600 height) placed on the right side
+    Rectangle newsBox = { 800, 170, 1000, 600 }; // Move it to the right side of the screen
+
+    // Financial news items with some additional details
+    std::string news1_title = "Stock Markets Reach Record Highs";
+    std::string news1_detail = "Global markets have been recovering steadily, with major stock indices hitting new highs.";
+    std::string news1_detail_2 = "The optimism comes as economic data suggests a strong growth trajectory for the coming year.";
+
+    std::string news2_title = "Tech Companies Reporting Strong Earnings";
+    std::string news2_detail = "Several tech giants have posted strong earnings in Q4";
+    std::string news2_detail_2 = "Companies like Apple and Microsoft reporting impressive profits.";
+
+    std::string news3_title = "Interest Rates Expected to Rise";
+    std::string news3_detail = "Experts predict that interest rates will rise in the coming months";
+    std::string news3_detail_2 = "Which could affect loan rates, mortgage payments, and overall consumer spending.";
+    std::string news3_detail_3 = "The Federal Reserve is expected to make a move to curb inflation.";
 
     bool shouldExit = false;
 
@@ -120,7 +224,6 @@ void display_manager_options(void) {
                 CloseWindow(); // Close current window
                 employee_management_module(); // Open employee management window
                 shouldExit = true; // Indicate exit
-
             }
             if (CheckCollisionPointRec(mouse, button2)) {
                 button2Active = true;
@@ -138,19 +241,58 @@ void display_manager_options(void) {
 
         BeginDrawing();
         ClearBackground(RAYWHITE);
-        DrawText("Welcome Sir!", 120, 100, 50, BLACK);
+
+        // Title Text
+        DrawText("Company Management System", 400, 50, 70, BLACK);
+
+        // Draw buttons for modules
         DrawRectangleRec(button1, button1Active ? DARKGRAY : LIGHTGRAY);
         DrawText("EMPLOYEE MANAGEMENT MODULE", button1.x + 10, button1.y + 15, 20, BLACK);
+
         DrawRectangleRec(button2, button2Active ? DARKGRAY : LIGHTGRAY);
         DrawText("PROJECT MANAGEMENT MODULE", button2.x + 10, button2.y + 15, 20, BLACK);
+
         DrawRectangleRec(button3, button3Active ? DARKGRAY : LIGHTGRAY);
         DrawText("FINANCE MANAGEMENT MODULE", button3.x + 10, button3.y + 15, 20, BLACK);
+
+        // Draw the news box (1000x600 box) placed on the right side of the screen
+        DrawRectangleRec(newsBox, LIGHTGRAY);
+
+        // Divide the news box into three vertical sections
+        float sectionHeight = newsBox.height / 3 - 30;
+
+        // Section 1 - News item 1
+        Rectangle section1 = { newsBox.x, newsBox.y + sectionHeight, newsBox.width, sectionHeight };
+        DrawRectangleRec(section1, LIGHTGRAY); // Draw the first section
+        DrawText("Corporate News", section1.x + 40, section1.y - sectionHeight, 70, DARKGRAY);
+        DrawText(news1_title.c_str(), section1.x + 10, section1.y + 10, 30, DARKGRAY);
+        DrawText(news1_detail.c_str(), section1.x + 10, section1.y + 40, 20, DARKGRAY);
+        DrawText(news1_detail_2.c_str(), section1.x + 10, section1.y + 70, 20, DARKGRAY);
+
+        // Section 2 - News item 2
+        Rectangle section2 = { newsBox.x, newsBox.y + 2*sectionHeight, newsBox.width, sectionHeight };
+        DrawRectangleRec(section2, LIGHTGRAY); // Draw the second section
+        DrawText(news2_title.c_str(), section2.x + 10, section2.y + 10, 30, DARKGRAY);
+        DrawText(news2_detail.c_str(), section2.x + 10, section2.y + 40, 20, DARKGRAY);
+        DrawText(news2_detail_2.c_str(), section2.x + 10, section2.y + 70, 20, DARKGRAY);
+
+        // Section 3 - News item 3
+        Rectangle section3 = { newsBox.x, newsBox.y + 3 * sectionHeight, newsBox.width, sectionHeight };
+        DrawRectangleRec(section3, LIGHTGRAY); // Draw the third section
+        DrawText(news3_title.c_str(), section3.x + 10, section3.y + 10, 30, DARKGRAY);
+        DrawText(news3_detail.c_str(), section3.x + 10, section3.y + 40, 20, DARKGRAY);
+        DrawText(news3_detail_2.c_str(), section3.x + 10, section3.y + 70, 20, DARKGRAY);
+        DrawText(news3_detail_3.c_str(), section3.x + 10, section3.y + 100, 20, DARKGRAY);
+
         EndDrawing();
     }
+
+    // Close window when the loop ends
     if (shouldExit) {
         CloseWindow(); // Close the window and end the program
     }
 }
+
 void employee_management_module(void) {
 
     Rectangle button_1 = { 700, 170, 400, 50 };
@@ -159,7 +301,7 @@ void employee_management_module(void) {
     Rectangle button_4 = { 700, 350, 400, 50 };
     Rectangle button_5 = { 700, 410, 400, 50 };
     Rectangle button_7 = { 700, 470, 400, 50 };
- 
+
     bool should_exit = false;
     while (!WindowShouldClose() && !should_exit) {
         Vector2 mouse_position = GetMousePosition();
@@ -215,7 +357,7 @@ void employee_management_module(void) {
             }
         }
         BeginDrawing();
-        DrawText("Welcome Sir!", 720, 100, 50, BLACK);
+        DrawText("Company Management System", 400, 50, 70, BLACK);
         ClearBackground(RAYWHITE);
         DrawRectangleRec(button_1, button_1_Active ? DARKGRAY : LIGHTGRAY);
         DrawText("Add new employee", button_1.x + 10, button_1.y + 15, 20, BLACK);
@@ -282,7 +424,7 @@ void project_management_module(void) {
             }
         }
         BeginDrawing();
-        DrawText("Welcome Sir!", 720, 100, 50, BLACK);
+        DrawText("Company Management System", 400, 50, 70, BLACK);
         ClearBackground(RAYWHITE);
         DrawRectangleRec(button_1, button_1_Active ? DARKGRAY : LIGHTGRAY);
         DrawText("Create new project", button_1.x + 10, button_1.y + 15, 20, BLACK);
@@ -300,7 +442,7 @@ void project_management_module(void) {
 }
 
 void add_employee(void) {
-   
+
     std::string employee_id_string, employee_name, employee_salary, employee_department,
         employee_designation, employee_joining_date, employee_skills;
 
@@ -702,7 +844,7 @@ void update_employee(int index) {
         employee_salary_Active = false, button_7_active = false;
 
     EMPLOYEE temp = employees[index]; // Load the existing employee data into temp
-    std::string employee_id_string = std::to_string(temp.ID), employee_name = temp.name , employee_salary = std::to_string(temp.salary), employee_department = temp.department,
+    std::string employee_id_string = std::to_string(temp.ID), employee_name = temp.name, employee_salary = std::to_string(temp.salary), employee_department = temp.department,
         employee_designation = temp.designation, employee_joining_date = temp.joining_date, employee_skills = temp.skills;
 
     bool is_data_valid = true; // To track if all inputs are valid
@@ -1087,7 +1229,7 @@ void display_specific_employee_data(int index) {
     Rectangle button_7 = { 0,0,400,50 };
     bool button_7_active = false;
     bool shouldexit = false;
-    while (!WindowShouldClose()&& !shouldexit) {
+    while (!WindowShouldClose() && !shouldexit) {
         Vector2 mouse = GetMousePosition();
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             button_7_active = CheckCollisionPointRec(mouse, button_7);
@@ -1298,7 +1440,7 @@ void add_project(void) {
     Project temp;
     bool project_saved = false; // Flag to check if the project is saved
     bool shouldexit = false;
-    while (!WindowShouldClose()&& !shouldexit) {
+    while (!WindowShouldClose() && !shouldexit) {
         Vector2 mouse = GetMousePosition();
 
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
@@ -1414,7 +1556,7 @@ void add_project(void) {
                 continue; // Skip saving if the Budget is not positive
             }
             temp.budget = std::stoi(project_budget);
-
+            
             // Ensure valid Start Date and End Date
             if (project_start_date.empty() || project_end_date.empty() || !is_valid_date(project_start_date) || !is_valid_date(project_end_date)) {
                 DrawText("Error: Invalid date format. Please use dd/mm/yyyy.", 100, 790, 20, RED);
@@ -1428,18 +1570,23 @@ void add_project(void) {
                 DrawText("Error: Start Date must be before End Date.", 100, 820, 20, RED);
                 continue; // Skip saving if the dates are incorrect
             }
-
             // Set project status based on the date comparison
             std::string currentDate = get_current_date();
             int currentDateNum = dateToNumber(currentDate);
             int projectEndDateNum = dateToNumber(project_end_date);
-            temp.status = (projectEndDateNum > currentDateNum) ? "In Progress" : "Completed";
 
             // Check if the project ID already exists
             if (binary_search_project(temp.projectId) == -1) {
+                temp.startDate = project_start_date;
+                temp.endDate = project_end_date;
+                temp.status = (projectEndDateNum > currentDateNum) ? "In Progress" : "Completed";
                 projects.push_back(temp);  // Save the project
+                int project_index = binary_search_project(temp.projectId);
+                CloseWindow();
+                gnatt_chart_input(project_index);
+                break;
+                shouldexit = true;
                 project_saved = true; // Flag to prevent saving again
-                DrawText("Project Saved Successfully", 100, 700, 20, DARKGREEN); // Confirmation message
             }
             else {
                 DrawText("Error: Project corresponding to this ID already exists.", 100, 700, 20, DARKGRAY);
@@ -1480,7 +1627,7 @@ void add_project(void) {
 
         // Draw "Save" and "Back" buttons
         DrawRectangle(600, 850, 400, 50, DARKGRAY);
-        DrawText("Save", 800, 860, 20, WHITE);
+        DrawText("Proceed", 800, 860, 20, WHITE);
         DrawRectangleRec(button_7, button_7_active ? DARKGRAY : LIGHTGRAY);
         DrawText("BACK", button_7.x + 10, button_7.y + 15, 20, BLACK);
 
@@ -1489,7 +1636,6 @@ void add_project(void) {
     if (shouldexit) {
         CloseWindow();
     }
-    save_project_data();  // Save project data to file if needed
 }
 
 std::string get_current_date() {
@@ -1682,11 +1828,13 @@ void save_project_data(void) {
         return;
     }
     for (const Project project : projects) {
-        FILE << project.projectId << "|"
-            << project.title << "|"
-            << project.budget << "|"
-            << project.startDate << "|"
-            << project.endDate << "|";
+        FILE << project.projectId << '|'
+            << project.title << '|'
+            << project.budget << '|'
+            << project.startDate << '|'
+            << project.endDate << '|'
+            << project.Planning[0] << '|' << project.Planning[1] << "|" << project.Research[0] << '|' << project.Research[1] << '|' << project.Design[0] << '|' << project.Design[1] << '|'
+            << project.Implementation[0] << '|' << project.Implementation[1] << '|' << project.Follow_up[0] << '|' << project.Follow_up[1] << '|';
         for (int i = 0; i < project.assignedEmployeeIds.size(); ++i) {
             FILE << project.assignedEmployeeIds[i] << "|";
         }
@@ -1696,31 +1844,59 @@ void save_project_data(void) {
     FILE.close();
 }
 void load_project_data(void) {
-    std::ifstream FILE("PROJECT DETAILS.txt");
+    std::ifstream FILE;
+    FILE.open("PROJECT DETAILS.txt");
+
     if (!FILE) {
         std::cerr << "Error opening file" << std::endl;
         return;
     }
+
+    projects.clear();  // Clear existing projects to prevent duplicate entries when loading
     std::string line;
+
     while (std::getline(FILE, line)) {
-        std::istringstream ss(line);
-        Project temp;
-        std::string item;
-        std::getline(ss, item, '|');
-        temp.projectId = std::stoi(item);
-        std::getline(ss, temp.title, '|');
-        std::getline(ss, item, '|');
-        temp.budget = std::stod(item);
-        std::getline(ss, temp.startDate, '|');
-        std::getline(ss, temp.endDate, '|');
-        temp.assignedEmployeeIds.clear();
-        while (std::getline(ss, item, '|')) {
-            if (!item.empty()) {
-                temp.assignedEmployeeIds.push_back(std::stoi(item));
-            }
+        std::stringstream ss(line);
+        Project newProject;
+        std::string temp;
+
+        // Extracting the project details
+        std::getline(ss, temp, '|');
+        newProject.projectId = std::stoi(temp);  // Convert string to int
+
+        std::getline(ss, newProject.title, '|');
+
+        std::getline(ss, temp, '|');
+        newProject.budget = std::stod(temp);  // Convert string to double
+
+        std::getline(ss, newProject.startDate, '|');
+        std::getline(ss, newProject.endDate, '|');
+
+        // Extracting dates for Planning, Research, Design, Implementation, and Follow-up phases
+        std::getline(ss, newProject.Planning[0], '|');
+        std::getline(ss, newProject.Planning[1], '|');
+
+        std::getline(ss, newProject.Research[0], '|');
+        std::getline(ss, newProject.Research[1], '|');
+
+        std::getline(ss, newProject.Design[0], '|');
+        std::getline(ss, newProject.Design[1], '|');
+
+        std::getline(ss, newProject.Implementation[0], '|');
+        std::getline(ss, newProject.Implementation[1], '|');
+
+        std::getline(ss, newProject.Follow_up[0], '|');
+        std::getline(ss, newProject.Follow_up[1], '|');
+
+        // Extracting assigned employee IDs
+        while (std::getline(ss, temp, '|')) {
+            newProject.assignedEmployeeIds.push_back(std::stoi(temp));
         }
-        projects.push_back(temp);
+
+        // Add the project to the list
+        projects.push_back(newProject);
     }
+
     FILE.close();
 }
 void sort_projects(void) {
@@ -1786,7 +1962,7 @@ void project_id_checker_for_display(void) {
     std::string project_id = "";
     bool project_id_input_active = false;
     bool shouldexit = false;
-    while (!WindowShouldClose()&& !shouldexit) {
+    while (!WindowShouldClose() && !shouldexit) {
         bool button_back_active = false;
         Vector2 mouse = GetMousePosition();
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
@@ -1854,6 +2030,10 @@ void display_specific_project_data(int index) {
     std::string project_end_date = projects[index].endDate;
     std::string project_status = projects[index].status;  // Add project status
 
+    Rectangle delete_project = { 1200,800,200,50 };
+
+    Rectangle proceed = { 600,800,200,50 };
+    bool proceed_active = false;
     int size = projects[index].assignedEmployeeIds.size();
     std::string* ID_POINTER_STRING = new std::string[size];
     for (int i = 0; i < size; ++i) {
@@ -1871,18 +2051,37 @@ void display_specific_project_data(int index) {
 
     Rectangle button_7 = { 0, 0, 400, 50 };
     bool button_7_active = false;
-    Rectangle employee_ids_box = { 600, 650, 400, 145 };  // Reduce the height of the employee IDs box
+    Rectangle employee_ids_box = { 600, 660, 400, 100 };  // Reduce the height of the employee IDs box
     bool employee_ids_box_active = false;
-    Rectangle status_box = { 600, 600, 400, 50 };  // New box for displaying project status
-
+    Rectangle status_box = { 600, 605, 400, 45 };  // New box for displaying project status
+    bool delete_active = false;
     while (!WindowShouldClose() && !shouldexit) {
         Vector2 mouse = GetMousePosition();
 
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             button_7_active = CheckCollisionPointRec(mouse, button_7);
         }
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+            proceed_active = CheckCollisionPointRec(mouse, proceed);
+        }
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+            delete_active = CheckCollisionPointRec(mouse, delete_project);
+        }
         if (button_7_active) {
             CloseWindow();
+            project_management_module();
+            shouldexit = true;
+            break;
+        }
+        if (proceed_active) {
+            CloseWindow();
+            draw_gantt_chart(projects[index], index);
+            shouldexit = true;
+            break;
+        }
+        if (delete_active) {
+            CloseWindow();
+            delete_projects(std::stoi(project_id));
             project_management_module();
             shouldexit = true;
             break;
@@ -1923,9 +2122,13 @@ void display_specific_project_data(int index) {
         DrawText(project_status.c_str(), 610, 610, 20, BLACK);  // Display the project status
         DrawText("Status", 300, 610, 20, DARKGRAY);  // Label for Status
 
+        DrawRectangleRec(proceed, LIGHTGRAY);
+        DrawText("Gnatt Chart", proceed.x + 10, proceed.y, 20, BLACK);
         // Display Assigned Employees
+        DrawRectangleRec(delete_project, RED);
+        DrawText("Delete", delete_project.x + 10, delete_project.y, 20, BLACK);
         DrawRectangleRec(employee_ids_box, LIGHTGRAY);
-        DrawText("Assigned Employees:", 610, 630, 20, DARKGRAY);
+        DrawText("Assigned Employees:", 300, 660, 20, DARKGRAY);
         int y_position = 670;
         int x_position = 610;
         for (int i = 0; i < checked_size; ++i) {
@@ -2102,7 +2305,7 @@ void draw_monthly_bar_chart(int total_income[], int expenses[], int net_income[]
     for (int i = 0; i < 12; ++i) {
         DrawText(months[i], chart_x + i * (chart_width + bar_gap) + 10, 750, 15, DARKGRAY);
     }
-    DrawText("Monthly Expenses and Incomes", 150 , 850, 30, DARKGRAY);
+    DrawText("Monthly Expenses and Incomes", 150, 850, 30, DARKGRAY);
 }
 // Modified display_financial_summary function with bar chart
 void display_finacial_summary(int index) {
@@ -2128,7 +2331,8 @@ void display_finacial_summary(int index) {
     std::string tax_str = std::to_string(tax);
     Rectangle button_7 = { 0,0,400,50 };
     bool button_7_active = false;
-
+    Rectangle delete_finances = { 1200,800,200,50 };
+    bool delete_finances_active = false;
     // Find the maximum value to scale the bar chart
     int max_value = std::max({ Yearly_income, Yearly_expense, net_income, tax });
 
@@ -2137,8 +2341,18 @@ void display_finacial_summary(int index) {
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             button_7_active = CheckCollisionPointRec(mouse, button_7);
         }
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+            delete_finances_active = CheckCollisionPointRec(mouse, delete_finances);
+        }
         if (button_7_active) {
             CloseWindow();
+            finance_management_module();
+            shouldexit = true;
+            break;
+        }
+        if (delete_finances_active) {
+            CloseWindow();
+            delete_finances_func(std::stoi(finances[index].year));
             finance_management_module();
             shouldexit = true;
             break;
@@ -2165,7 +2379,8 @@ void display_finacial_summary(int index) {
         DrawRectangle(600, 450, 400, 50, LIGHTGRAY);
         DrawText(tax_str.c_str(), 610, 460, 20, BLACK);
         DrawText("Tax(PKR)", 150, 460, 20, DARKGRAY);
-
+        DrawRectangleRec(delete_finances, RED);
+        DrawText("Delete", delete_finances.x, delete_finances.y, 20, BLACK);
         // Draw the bar chart
         draw_bar_chart(Yearly_income, Yearly_expense, net_income, tax, max_value);
         draw_monthly_bar_chart(temp.total_income, temp.expenses, temp.net_income);
@@ -2302,7 +2517,7 @@ void finance_management_module(void) {
             }
         }
         BeginDrawing();
-        DrawText("Welcome Sir!", 750, 100, 50, BLACK);
+        DrawText("Company Management System", 400, 50, 70, BLACK);
         ClearBackground(RAYWHITE);
         DrawRectangleRec(button_1, button_1_Active ? DARKGRAY : LIGHTGRAY);
         DrawText("Create new financial summary", button_1.x + 10, button_1.y + 15, 20, BLACK);
@@ -2560,7 +2775,7 @@ void add_expense(std::string year, int income_array[12]) {
     bool oct_expense_active = false, nov_expense_active = false, dec_expense_active = false;
     bool button_7_active = false;
     bool should_exit = false;
-    while (!WindowShouldClose()&& !should_exit) {
+    while (!WindowShouldClose() && !should_exit) {
         Vector2 mouse = GetMousePosition();
 
         // Mouse click detection
@@ -2794,6 +3009,7 @@ void generate_financial_report() {
         }
         outfile << std::endl;
     }
+    input_financial_data();
 }
 void input_financial_data() {
     std::ifstream infile("Finances.txt");  // Open the file for reading
@@ -2881,4 +3097,456 @@ int corporate_tax_calculator(int income) {
     else
         return income * 0.20;
     return 0;
+}
+void gnatt_chart_input(int index) {
+    // Input fields for each phase's dates
+    std::string planning_start_date = "", planning_end_date = "", research_start_date = "";
+    std::string research_end_date = "", design_start_date = "", design_end_date = "";
+    std::string implementation_start_date = "", implementation_end_date = "", follow_up_start_date = "";
+    std::string follow_up_end_date = "";
+
+    // Rectangle for the back button
+    Rectangle button_7 = { 0, 0, 400, 50 };
+
+    bool button_7_active = false;
+    bool should_exit = false;
+
+    while (!WindowShouldClose() && !should_exit) {
+        Vector2 mouse = GetMousePosition();
+
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+            button_7_active = CheckCollisionPointRec(mouse, button_7);
+        }
+
+        if (button_7_active) {
+            CloseWindow();
+            project_management_module();
+            should_exit = true;
+            break;
+        }
+
+        // Handle text input for each phase
+        // Planning Start Date
+        if ((mouse.x > 600 && mouse.x < 1000 && mouse.y > 135 && mouse.y < 175)) {
+            if (IsKeyPressed(KEY_BACKSPACE) && !planning_start_date.empty()) {
+                planning_start_date.pop_back();  // Remove last character if backspace is pressed
+            }
+            int key = GetCharPressed();
+            while (key > 0) {
+                if (key >= 32 && key <= 125) {
+                    if (planning_start_date.length() < 10) {
+                        planning_start_date += static_cast<char>(key);
+                    }
+                }
+                key = GetCharPressed();
+            }
+        }
+
+        // Planning End Date
+        if ((mouse.x > 600 && mouse.x < 1000 && mouse.y > 185 && mouse.y < 225)) {
+            int key = GetCharPressed();
+            if (IsKeyPressed(KEY_BACKSPACE) && !planning_end_date.empty()) {
+                planning_end_date.pop_back();
+            }
+            while (key > 0) {
+                if (key >= 32 && key <= 125) {
+                    if (planning_end_date.length() < 10) {
+                        planning_end_date += static_cast<char>(key);
+                    }
+                }
+                key = GetCharPressed();
+            }
+        }
+
+        // Research Start Date
+        if ((mouse.x > 600 && mouse.x < 1000 && mouse.y > 245 && mouse.y < 285)) {
+            int key = GetCharPressed();
+            if (IsKeyPressed(KEY_BACKSPACE) && !research_start_date.empty()) {
+                research_start_date.pop_back();
+            }
+            while (key > 0) {
+                if (key >= 32 && key <= 125) {
+                    if (research_start_date.length() < 10) {
+                        research_start_date += static_cast<char>(key);
+                    }
+                }
+                key = GetCharPressed();
+            }
+        }
+
+        // Research End Date
+        if ((mouse.x > 600 && mouse.x < 1000 && mouse.y > 295 && mouse.y < 335)) {
+            int key = GetCharPressed();
+            if (IsKeyPressed(KEY_BACKSPACE) && !research_end_date.empty()) {
+                research_end_date.pop_back();
+            }
+            while (key > 0) {
+                if (key >= 32 && key <= 125) {
+                    if (research_end_date.length() < 10) {
+                        research_end_date += static_cast<char>(key);
+                    }
+                }
+                key = GetCharPressed();
+            }
+        }
+
+        // Design Start Date
+        if ((mouse.x > 600 && mouse.x < 1000 && mouse.y > 345 && mouse.y < 385)) {
+            int key = GetCharPressed();
+            if (IsKeyPressed(KEY_BACKSPACE) && !design_start_date.empty()) {
+                design_start_date.pop_back();
+            }
+            while (key > 0) {
+                if (key >= 32 && key <= 125) {
+                    if (design_start_date.length() < 10) {
+                        design_start_date += static_cast<char>(key);
+                    }
+                }
+                key = GetCharPressed();
+            }
+        }
+
+        // Design End Date
+        if ((mouse.x > 600 && mouse.x < 1000 && mouse.y > 395 && mouse.y < 435)) {
+            int key = GetCharPressed();
+            if (IsKeyPressed(KEY_BACKSPACE) && !design_end_date.empty()) {
+                design_end_date.pop_back();
+            }
+            while (key > 0) {
+                if (key >= 32 && key <= 125) {
+                    if (design_end_date.length() < 10) {
+                        design_end_date += static_cast<char>(key);
+                    }
+                }
+                key = GetCharPressed();
+            }
+        }
+
+        // Implementation Start Date
+        if ((mouse.x > 600 && mouse.x < 1000 && mouse.y > 445 && mouse.y < 485)) {
+            int key = GetCharPressed();
+            if (IsKeyPressed(KEY_BACKSPACE) && !implementation_start_date.empty()) {
+                implementation_start_date.pop_back();
+            }
+            while (key > 0) {
+                if (key >= 32 && key <= 125) {
+                    if (implementation_start_date.length() < 10) {
+                        implementation_start_date += static_cast<char>(key);
+                    }
+                }
+                key = GetCharPressed();
+            }
+        }
+
+        // Implementation End Date
+        if ((mouse.x > 600 && mouse.x < 1000 && mouse.y > 495 && mouse.y < 535)) {
+            int key = GetCharPressed();
+            if (IsKeyPressed(KEY_BACKSPACE) && !implementation_end_date.empty()) {
+                implementation_end_date.pop_back();
+            }
+            while (key > 0) {
+                if (key >= 32 && key <= 125) {
+                    if (implementation_end_date.length() < 10) {
+                        implementation_end_date += static_cast<char>(key);
+                    }
+                }
+                key = GetCharPressed();
+            }
+        }
+
+        // Follow-up Start Date
+        if ((mouse.x > 600 && mouse.x < 1000 && mouse.y > 545 && mouse.y < 585)) {
+            int key = GetCharPressed();
+            if (IsKeyPressed(KEY_BACKSPACE) && !follow_up_start_date.empty()) {
+                follow_up_start_date.pop_back();
+            }
+            while (key > 0) {
+                if (key >= 32 && key <= 125) {
+                    if (follow_up_start_date.length() < 10) {
+                        follow_up_start_date += static_cast<char>(key);
+                    }
+                }
+                key = GetCharPressed();
+            }
+        }
+
+        // Follow-up End Date
+        if ((mouse.x > 600 && mouse.x < 1000 && mouse.y > 595 && mouse.y < 635)) {
+            int key = GetCharPressed();
+            if (IsKeyPressed(KEY_BACKSPACE) && !follow_up_end_date.empty()) {
+                follow_up_end_date.pop_back();
+            }
+            while (key > 0) {
+                if (key >= 32 && key <= 125) {
+                    if (follow_up_end_date.length() < 10) {
+                        follow_up_end_date += static_cast<char>(key);
+                    }
+                }
+                key = GetCharPressed();
+            }
+        }
+
+        // Validate input and only proceed if all are valid
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && (mouse.x > 600 && mouse.x < 1000 && mouse.y > 755 && mouse.y < 805)) {
+            bool all_inputs_valid = true;
+
+            // Validate each date field using your existing is_valid_date function
+            if (!is_valid_date(planning_start_date)) {
+                all_inputs_valid = false;
+                DrawText("Invalid Planning Start Date! Use dd/mm/yyyy format.", 1300, 300, 20, RED);
+            }
+            if (!is_valid_date(planning_end_date)) {
+                all_inputs_valid = false;
+                DrawText("Invalid Planning End Date! Use dd/mm/yyyy format.", 1300, 330, 20, RED);
+            }
+            if (!is_valid_date(research_start_date)) {
+                all_inputs_valid = false;
+                DrawText("Invalid Research Start Date! Use dd/mm/yyyy format.", 1300, 360, 20, RED);
+            }
+            if (!is_valid_date(research_end_date)) {
+                all_inputs_valid = false;
+                DrawText("Invalid Research End Date! Use dd/mm/yyyy format.", 1300, 390, 20, RED);
+            }
+            if (!is_valid_date(design_start_date)) {
+                all_inputs_valid = false;
+                DrawText("Invalid Design Start Date! Use dd/mm/yyyy format.", 1300, 420, 20, RED);
+            }
+            if (!is_valid_date(design_end_date)) {
+                all_inputs_valid = false;
+                DrawText("Invalid Design End Date! Use dd/mm/yyyy format.", 1300, 450, 20, RED);
+            }
+            if (!is_valid_date(implementation_start_date)) {
+                all_inputs_valid = false;
+                DrawText("Invalid Implementation Start Date! Use dd/mm/yyyy format.", 1300, 480, 20, RED);
+            }
+            if (!is_valid_date(implementation_end_date)) {
+                all_inputs_valid = false;
+                DrawText("Invalid Implementation End Date! Use dd/mm/yyyy format.", 1300, 510, 20, RED);
+            }
+            if (!is_valid_date(follow_up_start_date)) {
+                all_inputs_valid = false;
+                DrawText("Invalid Follow-up Start Date! Use dd/mm/yyyy format.", 1300, 540, 20, RED);
+            }
+            if (!is_valid_date(follow_up_end_date)) {
+                all_inputs_valid = false;
+                DrawText("Invalid Follow-up End Date! Use dd/mm/yyyy format.", 1300, 570, 20, RED);
+            }
+
+            // Check if start date is before end date for each phase using dateToNumber() comparison
+            if (all_inputs_valid) {
+                if (dateToNumber(planning_start_date) > dateToNumber(planning_end_date)) {
+                    all_inputs_valid = false;
+                    DrawText("Planning Start Date cannot be after the Planning End Date.", 1300, 600, 20, RED);
+                }
+
+                if (dateToNumber(research_start_date) > dateToNumber(research_end_date)) {
+                    all_inputs_valid = false;
+                    DrawText("Research Start Date cannot be after the Research End Date.", 1300, 630, 20, RED);
+                }
+
+                if (dateToNumber(design_start_date) > dateToNumber(design_end_date)) {
+                    all_inputs_valid = false;
+                    DrawText("Design Start Date cannot be after the Design End Date.", 1300, 660, 20, RED);
+                }
+
+                if (dateToNumber(implementation_start_date) > dateToNumber(implementation_end_date)) {
+                    all_inputs_valid = false;
+                    DrawText("Implementation Start Date cannot be after the Implementation End Date.", 1300, 690, 20, RED);
+                }
+
+                if (dateToNumber(follow_up_start_date) > dateToNumber(follow_up_end_date)) {
+                    all_inputs_valid = false;
+                    DrawText("Follow-up Start Date cannot be after the Follow-up End Date.", 1300, 720, 20, RED);
+                }
+            }
+
+            // If all inputs are valid, proceed
+            if (all_inputs_valid) {
+                projects[index].Planning[0] = planning_start_date;
+                projects[index].Planning[1] = planning_end_date;
+                projects[index].Design[0] = design_start_date;
+                projects[index].Design[1] = design_end_date;
+                projects[index].Research[0] = research_start_date;
+                projects[index].Research[1] = research_end_date;
+                projects[index].Implementation[0] = implementation_start_date;
+                projects[index].Implementation[1] = implementation_end_date;
+                projects[index].Follow_up[0] = follow_up_start_date;
+                projects[index].Follow_up[1] = follow_up_end_date;
+                DrawText("Project Saved Successfully", 100, 700, 20, DARKGREEN);
+                CloseWindow();
+                save_project_data();
+                project_management_module();
+                should_exit = true;
+                break;
+            }
+        }
+
+        BeginDrawing();
+        ClearBackground(RAYWHITE);
+
+        // Drawing input fields for dates (example for Planning phase)
+        // Planning Start Date
+        DrawText("Planning Start Date", 300, 145, 20, DARKGRAY);
+        DrawRectangle(600, 135, 400, 40, LIGHTGRAY);
+        DrawText(planning_start_date.c_str(), 610, 145, 20, BLACK);
+
+        // Planning End Date
+        DrawText("Planning End Date", 300, 195, 20, DARKGRAY);
+        DrawRectangle(600, 185, 400, 40, LIGHTGRAY);
+        DrawText(planning_end_date.c_str(), 610, 195, 20, BLACK);
+
+        // Research Start Date
+        DrawText("Research Start Date", 300, 245, 20, DARKGRAY);
+        DrawRectangle(600, 235, 400, 40, LIGHTGRAY);
+        DrawText(research_start_date.c_str(), 610, 245, 20, BLACK);
+
+        // Research End Date
+        DrawText("Research End Date", 300, 295, 20, DARKGRAY);
+        DrawRectangle(600, 285, 400, 40, LIGHTGRAY);
+        DrawText(research_end_date.c_str(), 610, 295, 20, BLACK);
+
+        // Design Start Date
+        DrawText("Design Start Date", 300, 345, 20, DARKGRAY);
+        DrawRectangle(600, 335, 400, 40, LIGHTGRAY);
+        DrawText(design_start_date.c_str(), 610, 345, 20, BLACK);
+
+        // Design End Date
+        DrawText("Design End Date", 300, 395, 20, DARKGRAY);
+        DrawRectangle(600, 385, 400, 40, LIGHTGRAY);
+        DrawText(design_end_date.c_str(), 610, 395, 20, BLACK);
+
+        // Implementation Start Date
+        DrawText("Implementation Start Date", 300, 445, 20, DARKGRAY);
+        DrawRectangle(600, 435, 400, 40, LIGHTGRAY);
+        DrawText(implementation_start_date.c_str(), 610, 445, 20, BLACK);
+
+        // Implementation End Date
+        DrawText("Implementation End Date", 300, 495, 20, DARKGRAY);
+        DrawRectangle(600, 485, 400, 40, LIGHTGRAY);
+        DrawText(implementation_end_date.c_str(), 610, 495, 20, BLACK);
+
+        // Follow-up Start Date
+        DrawText("Follow-up Start Date", 300, 545, 20, DARKGRAY);
+        DrawRectangle(600, 535, 400, 40, LIGHTGRAY);
+        DrawText(follow_up_start_date.c_str(), 610, 545, 20, BLACK);
+
+        // Follow-up End Date
+        DrawText("Follow-up End Date", 300, 595, 20, DARKGRAY);
+        DrawRectangle(600, 585, 400, 40, LIGHTGRAY);
+        DrawText(follow_up_end_date.c_str(), 610, 595, 20, BLACK);
+
+        DrawRectangle(600, 755, 400, 50, DARKGRAY);
+        DrawText("Save", 700, 765, 20, WHITE);
+
+        // Draw BACK button
+        DrawRectangleRec(button_7, button_7_active ? DARKGRAY : LIGHTGRAY);
+        DrawText("BACK", button_7.x + 10, button_7.y + 15, 20, BLACK);
+
+        EndDrawing();
+    }
+    if (should_exit) {
+        CloseWindow();
+    }
+}
+
+void draw_gantt_chart(const Project& project, int index) {
+    // Define the start positions and dimensions for the chart
+    const int chartStartX = 200;
+    const int chartStartY = 100;
+    const int chartWidth = 1600;  // Increased width by 400
+    const int chartHeight = 650; // Increased height by 200
+    const int phaseHeight = 50;
+    const int rowHeight = 90;   // Increased row height to give more vertical space
+
+    // Define the color setup for different phases
+    Color phaseColors[] = { BLUE, GREEN, RED, ORANGE, PURPLE };
+    bool back_button_active = false;
+    // Phase names
+    const char* phaseNames[] = { "Planning", "Research", "Design", "Implementation", "Follow-up" };
+
+    // Phase start and end dates
+    const char* phaseStartDates[] = {
+        project.Planning[0].c_str(), project.Research[0].c_str(), project.Design[0].c_str(), project.Implementation[0].c_str(), project.Follow_up[0].c_str()
+    };
+
+    const char* phaseEndDates[] = {
+        project.Planning[1].c_str(), project.Research[1].c_str(), project.Design[1].c_str(), project.Implementation[1].c_str(), project.Follow_up[1].c_str()
+    };
+
+    // Calculate the total project duration (from Planning start to Follow-up end)
+    int projectStartDate = dateToNumber(project.Planning[0]);
+    int projectEndDate = dateToNumber(project.Follow_up[1]);
+    int totalProjectDuration = projectEndDate - projectStartDate;  // Total days for the whole project
+
+    // Calculate the number of pixels per day for the X-axis
+    float daysPerPixel = (float)chartWidth / totalProjectDuration;
+    bool shouldexit = false;
+    // Begin drawing the Gantt chart
+    while (!WindowShouldClose() && !shouldexit) {
+        ClearBackground(RAYWHITE);
+        BeginDrawing();
+
+        // Draw title
+        DrawText("Project Gantt Chart", chartStartX + 450, chartStartY - 40, 30, BLACK);
+        Vector2 mouse = GetMousePosition();
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && (mouse.x < 400 && mouse.x > 0) && ((mouse.y > 0) && (mouse.y < 50))) {
+            CloseWindow();
+            project_management_module();
+            shouldexit = true;
+            break;
+        }
+        // Loop through each phase and draw bars
+        for (int i = 0; i < 5; ++i) {
+            // Calculate start and end dates for the phase
+            int startDate = dateToNumber(phaseStartDates[i]);
+            int endDate = dateToNumber(phaseEndDates[i]);
+
+            // Calculate the width of the phase (end date - start date)
+            int phaseDuration = endDate - startDate;
+
+            // Calculate the X position for the phase bar (scaled by daysPerPixel)
+            float startX = chartStartX + ((float)(startDate - projectStartDate)) * daysPerPixel;
+            float phaseWidth = phaseDuration * daysPerPixel;
+
+            // Draw the phase bar
+            DrawRectangle(startX, chartStartY + (i * rowHeight) + 5, phaseWidth, phaseHeight - 10, phaseColors[i]);
+
+            // Draw phase label
+            DrawText(phaseNames[i], startX, chartStartY + (i * rowHeight) + 15, 20, BLACK);
+
+            // Draw the actual dates for the phase
+            DrawText(phaseStartDates[i], startX, chartStartY + (i * rowHeight) + phaseHeight, 20, BLACK);
+            DrawText(phaseEndDates[i], startX + phaseWidth - MeasureText(phaseEndDates[i], 20), chartStartY + (i * rowHeight) + phaseHeight, 20, BLACK);
+        }
+
+        // Draw BACK button
+        Rectangle button_7 = { 0, 0, 400, 50 };
+        DrawRectangleRec(button_7, DARKGRAY);
+        DrawText("BACK", button_7.x + 10, button_7.y + 15, 20, WHITE);
+
+        EndDrawing();
+    }
+    if (shouldexit) {
+        CloseWindow();
+    }
+}
+void delete_projects(int id) {
+    std::vector<Project> new_projects;
+    for (int i = 0; i < projects.size(); ++i) {
+        if (projects[i].projectId != id) {
+            new_projects.push_back(projects[i]);
+        }
+    }
+    projects = new_projects;
+    save_project_data();
+}
+void delete_finances_func(int year){
+    std::vector<Financial_matters> new_finances;
+    for (int i = 0; i < finances.size(); ++i) {
+        if (std::stoi(finances[i].year) != year) {
+            new_finances.push_back(finances[i]);
+        }
+    }
+    finances = new_finances;
+    generate_financial_report();
 }
