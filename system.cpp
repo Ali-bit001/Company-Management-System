@@ -64,6 +64,7 @@ void display_employee_checker();
 int check_if_employee_already_exists(int, EMPLOYEE);
 void availability_string_initializer(EMPLOYEE&);
 void display_specific_employee_data(int);
+void avaialabilty_string();
 void display_all_employees_data(void);
 bool is_valid_date(const std::string&);
 
@@ -83,6 +84,7 @@ void busy_employees_text_generator(void);
 void gnatt_chart_input(int index);
 void draw_gantt_chart(const Project& project, int index);
 void delete_projects(int id);
+void employee_availability(void);
 void read_busy_employees_from_file(void);
 std::string get_current_date(void);
 
@@ -109,8 +111,10 @@ int main(void) {
     SetTargetFPS(30);
     input_financial_data();
     read_busy_employees_from_file();
-    load_project_data();
     load_employee_data();
+    load_project_data();
+    employee_availability();
+    avaialabilty_string();
     login_window();
 }
 void login_window(void) {
@@ -588,6 +592,11 @@ void add_employee(void) {
                 employee_designation = "";
                 employee_joining_date = "";
                 employee_skills = "";
+                save_employee_data();
+                CloseWindow();
+                employee_management_module();
+                should_exit = true;
+                break;
             }
             else if (employee_exists) {
                 DrawText("Employee corresponding to this ID already exists", 1500, 400, 20, RED);
@@ -640,7 +649,6 @@ void add_employee(void) {
         EndDrawing();
     }
     if (should_exit) {
-        save_employee_data();
         CloseWindow();
     }
 }
@@ -1579,7 +1587,12 @@ void add_project(void) {
             if (binary_search_project(temp.projectId) == -1) {
                 temp.startDate = project_start_date;
                 temp.endDate = project_end_date;
-                temp.status = (projectEndDateNum > currentDateNum) ? "In Progress" : "Completed";
+                if (projectEndDateNum > currentDateNum) {
+                    temp.status = "In Progress";
+                }
+                else {
+                    temp.status = "Completed";
+                }
                 projects.push_back(temp);  // Save the project
                 int project_index = binary_search_project(temp.projectId);
                 CloseWindow();
@@ -1790,6 +1803,11 @@ void assign_project_to_employee_checker(int project_index) {
             }
             else {
                 search_employee_and_assign_employee(index_of_employee, employees[index_of_employee].ID, projects[temp_project_index], temp_project_index);
+                CloseWindow();
+                save_project_data();
+                project_management_module();
+                shouldexit = true;
+                break;
                 DrawText("Employee succesfully assigned to project", 100, 200, 20, BLACK);
             }
         }
@@ -3549,4 +3567,22 @@ void delete_finances_func(int year){
     }
     finances = new_finances;
     generate_financial_report();
+}
+void employee_availability(void) {
+    for (int i = 0; i < projects.size(); ++i) {
+        for (int j = 0; j < projects[i].assignedEmployeeIds.size(); ++j) {
+            int index = binary_search(projects[i].assignedEmployeeIds[j]);
+            employees[index].availability = false;
+        }
+    }
+}
+void avaialabilty_string() {
+    for (int i = 0; i < employees.size(); ++i) {
+        if (employees[i].availability) {
+            employees[i].availability_string = "Yes";
+        }
+        else {
+            employees[i].availability_string = "No";
+        }
+    }
 }
